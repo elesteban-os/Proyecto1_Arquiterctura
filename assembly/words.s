@@ -21,9 +21,9 @@ open_fail_text: .asciz "No se pudo abrir el archivo\n"
 read_fail_text: .asciz "No se pudo leer el archivo\n"
 
 .section .bss
-stat_buffer: .space 48
+    statbuf: .space 100
 
-.text
+.section .text
 
 _start:
     @ Programa pasa a openfile
@@ -33,7 +33,7 @@ openfile:
     ldr r0, =filename   @ Cargar ubicacion archivo
     mov r1, #0          @ Modo lectura
     mov r7, #5          @ Syscall open
-    svc 0               @ Syscall
+    swi 0               @ Syscall
 
     mov r4, r0          @ Ubicacion de archivo a r4
 
@@ -43,11 +43,11 @@ openfile:
 
     @ Obtener el tamano del archivo
     mov r0, r4          @ Ubicacion de archivo
-    ldr r1, =stat_buffer   @ Puntero a filedata
+    ldr r1, =statbuf   @ Puntero a filedata
     mov r7, #8          @ Syscall fstat
-    svc 0               @ Syscall
+    swi 0               @ Syscall
 
-    ldr r0, [r1, #10]  @ Tamano del archivo se encuentra sumando offset de 40
+    ldr r0, [r1, #40]  @ Tamano del archivo se encuentra sumando offset de 40
     mov r11, r0
 
 
@@ -55,9 +55,9 @@ readfile:
     @ Leer el archivo con sys_read
     mov r0, r4        @ Ubicacion de archivo
     ldr r1, =buffer    @ Direccion de buffer para guardar datos
-    mov r2, #256       @ Leer 256 bytes (enviar dato de buffer con python)
+    mov r2, r11      @ Leer 256 bytes (enviar dato de buffer con python)
     mov r7, #3          @ Syscall de read
-    svc 0               @ 
+    swi 0               @ 
     
     
 
