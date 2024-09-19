@@ -44,12 +44,11 @@ openfile:
     @ Obtener el tamano del archivo
     mov r0, r4          @ Ubicacion de archivo
     ldr r1, =statbuf   @ Puntero a filedata
-    mov r7, #8          @ Syscall fstat
+    mov r7, #108          @ Syscall fstat
     swi 0               @ Syscall
 
-    ldr r0, [r1, #40]  @ Tamano del archivo se encuentra sumando offset de 40
-    mov r11, r0
-
+    ldr r2, =statbuf   @ Puntero a filedata
+    ldr r11, [r2, #0]  @ Tamano del archivo se encuentra sumando offset de 40
 
 readfile:
     @ Leer el archivo con sys_read
@@ -58,8 +57,11 @@ readfile:
     mov r2, r11      @ Leer 256 bytes (enviar dato de buffer con python)
     mov r7, #3          @ Syscall de read
     swi 0               @ 
-    
-    
+
+    @ Syscall de close
+    mov r0, r4
+    mov r7, #6
+    swi 0
 
     mov r12, r1         @ Cambiar de registro el buffer
 
@@ -96,7 +98,7 @@ readword:
     b readword
 
 endoftext:
-    mov r5, #0
+    bl printword
     b end
 
 endofword:
@@ -133,12 +135,7 @@ read_fail:
     ldr r1, =read_fail_text       @ Mostrar mensaje de error si no se pudo leer
 
 end:
-    @ Print
-    mov r0, #1  @ STDOUT = 1
-    @ldr r1, =word    @ r1 contiene la direccion de memoria de lo que se va a imprimir
-    mov r2, #20  @ Cantidad caracteres
-    mov r7, #4  @ Para syscall write
-    swi 0   
+ 
 
     @ Salida sistema
     mov r7, #1          @ Número de syscall para exit
