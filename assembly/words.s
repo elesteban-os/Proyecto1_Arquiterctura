@@ -1,12 +1,27 @@
 .global _start
 
-.data
-buffer:     .space 10485760            @ Espacio de 10MB para almacenar datos leídos
-character:  .space 1                   @ Espacio de un byte para un caracter
-word:       .space 20                  @ Espacio de 20 bytes para guardar una palabra
-filename:   .asciz "../cache/text.txt"     @ Ubicacion del archivo
+.section .data
+buffer:      .space 10485760            @ Espacio de 10MB para almacenar datos leídos
+
+@ Parte de punteros / diccionario (estructura: 8 bytes ubicacion palabra, 2 bytes cantidad caracteres, 6 bytes cantidad apariciones)
+pos_words:    .space 800000            @ Espacio para guardar las palabras encontradas
+num_char:     .space 200000            @ Espacio para guardar la cantidad de caracteres de palabra
+num_times:    .space 400000            @ Espacio para guardar la cantidad de veces que aparece una palabra
+num_words:    .space 6250              @ Cantidad de palabras que existen
+
+@ Para guardar caracteres y palabras
+character:    .space 1                   @ Espacio de un byte para un caracter
+word:         .space 30                  @ Espacio de 30 bytes para guardar una palabra
+
+@ Manejo del archivo
+filename:       .asciz "../cache/text.txt"     @ Ubicacion del 
+filedata:      .space 48
+
 open_fail_text: .asciz "No se pudo abrir el archivo\n"
-read_fail_text: .asciz "No se pudo excribir el archivo\n"
+read_fail_text: .asciz "No se pudo leer el archivo\n"
+
+.section .bss
+stat_buffer: .space 48
 
 .text
 
@@ -18,21 +33,33 @@ openfile:
     ldr r0, =filename   @ Cargar ubicacion archivo
     mov r1, #0          @ Modo lectura
     mov r7, #5          @ Syscall open
-    swi 0               @ Syscall
+    svc 0               @ Syscall
+
+    mov r4, r0          @ Ubicacion de archivo a r4
 
     @ Verificar si se abrio el archivo
     cmp r0, #0          @ Verifica que se abrio el archivo
     blt open_fail       @ Si r0 < 0 no abrio
 
-    mov r4, r0          @ Ubicacion de archivo a r4
+    @ Obtener el tamano del archivo
+    mov r0, r4          @ Ubicacion de archivo
+    ldr r1, =stat_buffer   @ Puntero a filedata
+    mov r7, #8          @ Syscall fstat
+    svc 0               @ Syscall
+
+    ldr r0, [r1, #10]  @ Tamano del archivo se encuentra sumando offset de 40
+    mov r11, r0
+
 
 readfile:
     @ Leer el archivo con sys_read
-    mov r0, r4          @ Ubicacion de archivo
-    ldr r1, =buffer     @ Direccion de buffer para guardar datos
-    mov r2, #256        @ Leer 256 bytes (enviar dato de buffer con python)
+    mov r0, r4        @ Ubicacion de archivo
+    ldr r1, =buffer    @ Direccion de buffer para guardar datos
+    mov r2, #256       @ Leer 256 bytes (enviar dato de buffer con python)
     mov r7, #3          @ Syscall de read
-    swi 0               @ Syscall
+    svc 0               @ 
+    
+    
 
     mov r12, r1         @ Cambiar de registro el buffer
 
@@ -50,13 +77,6 @@ readword:
     @strb r3, [r1]
     @bl print            @ Imprimir caracter
 
-    @ Ir guardando la palabra en word (va con salto de linea)
-    ldr r5, =word
-    strb r3, [r5, r4]
-
-    @ Sumar el indice de caracteres y mover el offset de word
-    add r4, r4, #1
-
     @ Comparar a ver si es el final del texto
     cmp r3, #0 
     beq endoftext
@@ -65,7 +85,12 @@ readword:
     cmp r3, #10
     beq endofword
 
-    
+    @ Ir guardando la palabra en word
+    ldr r5, =word
+    strb r3, [r5, r4]
+
+    @ Sumar el indice de caracteres y mover el offset de word (tambien funciona como cantidad de caracteres)
+    add r4, r4, #1    
 
     @ Continuar loop
     b readword
@@ -108,6 +133,13 @@ read_fail:
     ldr r1, =read_fail_text       @ Mostrar mensaje de error si no se pudo leer
 
 end:
+    @ Print
+    mov r0, #1  @ STDOUT = 1
+    @ldr r1, =word    @ r1 contiene la direccion de memoria de lo que se va a imprimir
+    mov r2, #20  @ Cantidad caracteres
+    mov r7, #4  @ Para syscall write
+    swi 0   
+
     @ Salida sistema
     mov r7, #1          @ Número de syscall para exit
     swi 0
