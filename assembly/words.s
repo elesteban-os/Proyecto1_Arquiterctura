@@ -165,7 +165,7 @@ createtext:
     @ Crear texto de palabras y frecuencias para pasarlo a python por medio de un .txt   
     @ Saber si se llego al final del diccionario
     cmp r0, r10
-    beq createtxt
+    beq createtxtfile
 
     @ Pasar texto
     ldr r8, [r0]            @ Obtener posicion inicial memoria de palabra 
@@ -179,8 +179,8 @@ createtext:
 
     @ Pasar frecuencias
     ldr r11, [r0, #10]
-    add r11, #32            @ Sumar 32 para que aparezca como un simbolo. En python hay que restarle 32
-    str r11, [r2], #6
+    @add r11, #33            @ Sumar 33 para que aparezca como un simbolo. En python hay que restarle 33
+    str r11, [r2], #1
 
     @ Escribir salto de linea
     mov r11, #10
@@ -188,10 +188,34 @@ createtext:
 
     @ Continuar bucle
     add r0, r0, #16
-    b end
+    b createtext
 
+createtxtfile:
+    @ Crear archivo .txt para que python lo analice
 
+    @ Abrir archivo con sys_open
+    ldr r0, =fileresult   @ Cargar ubicacion archivo
+    mov r1, #0101         @ Modo escritura (si no existe el archivo lo crea)
+    mov r2, #0644         @ Permisos para el modo escritura
+    mov r7, #5            @ Syscall open
+    swi 0                 @ Syscall
 
+    mov r4, r0            @ Descriptor de archivo a r4
+
+    @ Verificar si se abrio el archivo
+    cmp r0, #0            @ Verifica que se abrio el archivo
+    blt open_fail         @ Si r0 < 0 no abrio
+
+    @ Escribir el archivo con sys_open
+    mov r0, r4            @ Colocar descriptor en r0
+    ldr r1, =resulttext    @ Colocar lo que se va a escribir
+    mov r2, #1000         @ Bytes a escribir
+    mov r7, #4            @ Llamada a sistema syswrite
+    swi 0                 @ Llamada
+
+    @ Cerrar el archivo
+    mov r7, #1            @ Syscall de exit
+    swi 0                 @ Syscall
 
 writetext:
     @ Comparar si llego al final de palabra
