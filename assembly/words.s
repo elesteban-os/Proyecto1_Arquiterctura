@@ -5,7 +5,7 @@ buffer:      .space 10485760            @ Espacio de 10MB para almacenar datos l
 
 @ Parte de punteros / diccionario (estructura: 8 bytes ubicacion palabra, 2 bytes cantidad caracteres, 6 bytes cantidad apariciones)
 dictionary:   .space 1400000 
-
+resulttext:   .space 1000    @ Espacio para escribir el resultado de las palabras con mas frecuencias
 
 @ Para guardar caracteres y palabras
 character:    .space 1                   @ Espacio de un byte para un caracter
@@ -98,9 +98,9 @@ read_firstword:
 
 endof_firstword:
     @ Imprimir en pantalla la palabra   
-    bl printword
-    ldr r1, =newline
-    bl print
+    @bl printword
+    @ldr r1, =newline
+    @bl print
     
     @ Agregar palabra en el diccionario
     bl addword
@@ -131,22 +131,11 @@ readword:
     @ Continuar loop
     b readword
 
-endoftext:
-    @ Imprimir en pantalla la palabra
-    bl printword
-    ldr r1, =newline
-    bl print
-
-    @ Buscar en el diccionario
-    bl pre_searchword
-
-    b end
-
 endofword:
     @ Imprimir en pantalla la palabra   
-    bl printword
-    ldr r1, =newline
-    bl print
+    @bl printword
+    @ldr r1, =newline
+    @bl print
 
     @ Buscar en el diccionario
     bl pre_searchword  
@@ -157,6 +146,74 @@ endofword:
 
     @ Seguir con el texto del buffer
     b readword
+
+endoftext:
+    @ Imprimir en pantalla la palabra
+    @bl printword
+    @ldr r1, =newline
+    @bl print
+
+    @ Buscar en el diccionario
+    bl pre_searchword
+
+    @ Crear texto del diccionario
+    ldr r0, =dictionary     @ Direccion inicial diccionario
+    ldr r2, =resulttext     @ Direccion del resultado (texto del .txt para python)
+    b createtext
+
+createtext:
+    @ Crear texto de palabras y frecuencias para pasarlo a python por medio de un .txt   
+    @ Saber si se llego al final del diccionario
+    cmp r0, r10
+    beq createtxt
+
+    @ Pasar texto
+    ldr r8, [r0]            @ Obtener posicion inicial memoria de palabra 
+    ldrb r5, [r0, #8]       @ Obtener cantidad caracteres
+    mov r7, #0              @ Indice caracteres
+    bl writetext
+
+    @ Escribir espacio
+    mov r11, #32
+    strb r11, [r2], #1
+
+    @ Pasar frecuencias
+    ldr r11, [r0, #10]
+    add r11, #32            @ Sumar 32 para que aparezca como un simbolo. En python hay que restarle 32
+    str r11, [r2], #6
+
+    @ Escribir salto de linea
+    mov r11, #10
+    str r11, [r2], #1
+
+    @ Continuar bucle
+    add r0, r0, #16
+    b end
+
+
+
+
+writetext:
+    @ Comparar si llego al final de palabra
+    cmp r5, r7
+    beq writetext_end
+
+    @ Sumar indice
+    add r7, r7, #1
+
+    @ Pasar letra
+    ldr r9, [r8], #1        @ Obtener caracter en r8 y sumarle 1 a r8
+    strb r9, [r2], #1       @ Guardar caracter en resulttext y sumarle 1 al cursor
+
+    @ Continuar loop
+    b writetext
+
+writetext_end:
+    bx lr
+
+
+
+
 
 
 
@@ -334,8 +391,6 @@ printword:
     swi 0   
     bx lr
 
-
-
 open_fail:
     ldr r1, =open_fail_text       @ Mostrar mensaje de error si el archivo no se abre
     b end
@@ -368,8 +423,8 @@ end:
     @ Print
     mov r0, #1  @ STDOUT = 1
 
-    ldr r1, =dictionary   @ r1 contiene la direccion de memoria de lo que se va a imprimir
-    mov r2, #30000  @ Cantidad caracteres
+    ldr r1, =resulttext  @ r1 contiene la direccion de memoria de lo que se va a imprimir
+    mov r2, #1000 @ Cantidad caracteres
     mov r7, #4  @ Para syscall write
     swi 0  
  
