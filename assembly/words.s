@@ -4,20 +4,17 @@
 buffer:      .space 10485760            @ Espacio de 10MB para almacenar datos leídos
 
 @ Parte de punteros / diccionario (estructura: 8 bytes ubicacion palabra, 2 bytes cantidad caracteres, 6 bytes cantidad apariciones)
-pos_words:    .space 800000            @ Espacio para guardar las palabras encontradas
-num_char:     .space 200000            @ Espacio para guardar la cantidad de caracteres de palabra
-num_times:    .space 400000            @ Espacio para guardar la cantidad de veces que aparece una palabra
-num_words:    .space 6250              @ Cantidad de palabras que existen
-
 dictionary:   .space 1400000 
+
 
 @ Para guardar caracteres y palabras
 character:    .space 1                   @ Espacio de un byte para un caracter
 word:         .space 30                  @ Espacio de 30 bytes para guardar una palabra
 
 @ Manejo del archivo
-filename:       .asciz "../cache/text.txt"     @ Ubicacion del 
+filename:       .asciz "../cache/text.txt"     @ Ubicacion del archivo
 filedata:      .space 48
+fileresult:     .asciz "../cache/result.txt"
 
 open_fail_text: .asciz "No se pudo abrir el archivo\n"
 read_fail_text: .asciz "No se pudo leer el archivo\n"
@@ -152,13 +149,15 @@ endofword:
     bl print
 
     @ Buscar en el diccionario
-    bl pre_searchword
-    
+    bl pre_searchword  
+
     @ Reiniciar indice de word
     mov r4, #0
 
+
     @ Seguir con el texto del buffer
     b readword
+
 
 
 pre_searchword:
@@ -225,6 +224,68 @@ addfreq:
     ldr r2, [r6, #10]   @ Obtener la frecuencia actual
     add r2, r2, #1      @ Sumar 1
     str r2, [r6, #10]   @ Escribirla de nuevo en la direccion
+
+    ldr r3, =dictionary
+    b freq_order
+
+freq_order:
+    @ Reacomodar diccionario en orden de frecuencias con la palabra recien aumentada
+    @ R2: frecuencia de la palabra actual en el diccionario
+    @ R7: frecuencia de la palabra a la izquierda de la actual en el diccionario
+    @ R6: puntero temporal diccionario
+    @ R3: puntero temporal diccionario[0]
+
+    @ Saber si se ha llegado al inicio de diccionario
+    cmp r6, r3
+    beq freq_orderout
+
+    @ Comparar frecuencia con la palabra que este a la izquierda
+    sub r6, r6, #16     @ Mover indice diccionario a la izquierda
+    ldrb r7, [r6, #10]   @ Obtener la frecuencia palabra izquierda
+    ldrb r2, [r6, #26]   @ Obtener la frecuencia palabra actual
+
+    @ Si r7 < r2 se debe mover la palabra
+    cmp r7, r2
+    blt freq_move
+
+    @ Si no, se sale del programa
+    bx lr
+    
+freq_move:
+    @ Intercambiar datos
+
+    @ Indice palabra en buffer
+    @ Obtener
+    ldr r0, [r6]
+    ldr r2, [r6, #16]
+
+    @ Intercambiar
+    str r0, [r6, #16]
+    str r2, [r6]
+
+    @ #Caracteres
+    @ Obtener
+    ldrb r0, [r6, #8]
+    ldrb r2, [r6, #24]
+
+    @ Intercambiar
+    strb r0, [r6, #24]
+    strb r2, [r6, #8]
+
+    @ Frecuencias
+    @ Obtener
+    ldr r0, [r6, #10]
+    ldr r2, [r6, #26]
+
+    @ Intercambiar
+    str r0, [r6, #26]
+    str r2, [r6, #10]
+
+    @ Continuar verificando frecuencias
+    b freq_order
+
+
+freq_orderout:
     bx lr
 
 addword:
@@ -290,7 +351,7 @@ pruebadiccionarios:
 
 pruebadiccionarios2:
     ldr r1, [r0]
-    ldr r2, [r0, #8]
+    ldrb r2, [r0, #8]
     ldr r3, [r0, #10]
     add r0, r0, #16
 
@@ -302,7 +363,7 @@ pruebadiccionarios2:
 end:
 
     @ Prueba de diccionarios
-    b pruebadiccionarios
+    @b pruebadiccionarios
 
     @ Print
     mov r0, #1  @ STDOUT = 1
