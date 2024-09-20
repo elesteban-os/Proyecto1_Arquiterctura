@@ -140,6 +140,8 @@ endoftext:
     ldr r1, =newline
     bl print
 
+    @ Buscar en el diccionario
+    bl pre_searchword
 
     b end
 
@@ -150,9 +152,7 @@ endofword:
     bl print
 
     @ Buscar en el diccionario
-
-    @ Agregar palabra en el diccionario
-    bl addword
+    bl pre_searchword
     
     @ Reiniciar indice de word
     mov r4, #0
@@ -160,16 +160,84 @@ endofword:
     @ Seguir con el texto del buffer
     b readword
 
+
+pre_searchword:
+    ldr r6, =dictionary     @ Cargar direccion memoria inicial diccionario
+    @ R7: Cursor actual del diccionario ((R7 - R6) / 16) cantidad palabras
+    @ Cuando R6 == R10 no hay coincidencias
+    
+searchword:
+    @ Comparar si se llego a la direccion actual de diccionario si no hay coincidencias y agregar nueva palabra
+    cmp r6, r10
+    beq addword
+
+    @ 1. Comparar #caracteres
+    ldrb r8, [r6, #8]    @ Obtener cantidad caracteres de palabra en el diccionario
+    @sub r8, r8, #65536
+
+    @ Cantidad de caracteres es la misma: comparar palabra
+    cmp r8, r4
+    beq compareword
+
+    @ Si no es la misma cantidad caracteres: mover cursor de diccionario de busqueda
+    add r6, r6, #16  
+
+    @ Continuar el loop
+    b searchword 
+
+compareword:
+    @ 2. Comparar palabra
+    @ R0: indice letra de palabra (offset)
+    @ R4: tamano palabra
+    @ R5: word
+    @ R6: direccion memoria diccionario de la palabra a comparar 
+    @ R8: cargar posicion inicial de palabra en buffer
+    @ R12: buffer
+    
+    mov r0, #0      @ Indice 0 palabra (comparar con r4)
+    ldr r5, =word   @ Cargar direccion memoria inicial word
+    ldr r8, [r6]    @ Cargar direccion inicial de palabra en buffer
+
+    b bucle_compareword
+
+bucle_compareword:
+
+    @ Si se analizo todos los caracteres se anade 1 a la frecuencia
+    cmp r0, r4
+    beq addfreq
+
+    ldrb r2, [r5, r0] @ Cargar caracter de word
+    ldrb r3, [r8, r0] @ Cargar caracter del buffer
+
+    @ Anade 1 al indice
+    add r0, r0, #1
+
+    @ Caracter es igual: seguir comparando caracteres
+    cmp r2, r3
+    beq bucle_compareword
+
+    @ Caracter no es igual: no seguir comparando y seguir buscando por mas palabras 
+    add r6, r6, #16
+    b searchword
+
+addfreq:
+    @ Anade 1 a frecuencia
+    ldr r2, [r6, #10]   @ Obtener la frecuencia actual
+    add r2, r2, #1      @ Sumar 1
+    str r2, [r6, #10]   @ Escribirla de nuevo en la direccion
+    bx lr
+
 addword:
     @ Agregar palabra al diccionario ([8B: puntero en el buffer, 2B: #caracteres, 6B: cantidad apariciones])
-    @ R7: direccion de diccionario (cursor se mueve)
+    @ R10: direccion de diccionario (cursor se mueve)
     @ R12: indice en el buffer (restar cantidad caracteres)
     @ R4: cantidad caracteres
     @ Apariciones = 0
     
-    @ Obtener la posicion en memoria de la palabra (Indice buffer - cantidad caracteres)
+    @ Obtener la posicion en memoria de la palabra (Indice buffer - cantidad caracteres - 1)
     mov r8, r12
     sub r8, r8, r4
+    sub r8, r8, #1
 
     @ Guardar direccion memoria del primer caracter de la palabra en el buffer
     str r8, [r10]
@@ -177,8 +245,8 @@ addword:
     @ Guardar cantidad caracteres de la palabra
     str r4, [r10, #8]
 
-    @ Cantidad apariciones = 0
-    mov r8, #0
+    @ Cantidad apariciones = 1
+    mov r8, #1
     str r8, [r10, #10]
 
     @ Mover cursor de diccionario:
@@ -214,6 +282,8 @@ open_fail:
 read_fail:
     ldr r1, =read_fail_text       @ Mostrar mensaje de error si no se pudo leer
 
+@ ----------------------- Pruebas -----------------------
+
 pruebadiccionarios:
     ldr r0, =dictionary
     b pruebadiccionarios2
@@ -223,7 +293,10 @@ pruebadiccionarios2:
     ldr r2, [r0, #8]
     ldr r3, [r0, #10]
     add r0, r0, #16
+
     b pruebadiccionarios2
+
+@ -------------------------------------------------------
     
 
 end:
