@@ -48,7 +48,7 @@ openfile:
     swi 0               @ Syscall
 
     ldr r2, =statbuf   @ Puntero a filedata
-    ldr r11, [r2, #0]  @ Tamano del archivo se encuentra sumando offset de 40
+    ldr r11, [r2, #4]  @ Tamano del archivo se encuentra sumando offset de 40
 
 readfile:
     @ Leer el archivo con sys_read
@@ -174,7 +174,7 @@ createtext:
 
     @ Pasar texto
     ldr r8, [r0]            @ Obtener posicion inicial memoria de palabra 
-    ldrb r5, [r0, #8]       @ Obtener cantidad caracteres
+    ldr r5, [r0, #4]       @ Obtener cantidad caracteres
     mov r7, #0              @ Indice caracteres
     bl writetext
 
@@ -183,8 +183,8 @@ createtext:
     strb r11, [r2], #1
 
     @ Pasar frecuencias
-    ldr r11, [r0, #10]
-    add r11, #32            @ Sumar 32 para que aparezca como un simbolo. En python hay que restarle 32
+    ldr r11, [r0, #8]
+    @add r11, #32            @ Sumar 32 para que aparezca como un simbolo. En python hay que restarle 32
     str r11, [r2], #1
 
     @ Escribir salto de linea
@@ -220,7 +220,8 @@ createtxtfile:
     swi 0                 @ Llamada
 
     @ Cerrar el archivo
-    mov r7, #1            @ Syscall de exit
+    mov r0, r4
+    mov r7, #7            @ Syscall de close
     swi 0                 @ Syscall
 
     b end
@@ -244,11 +245,6 @@ writetext_end:
     bx lr
 
 
-
-
-
-
-
 pre_searchword:
     ldr r6, =dictionary     @ Cargar direccion memoria inicial diccionario
     @ R7: Cursor actual del diccionario ((R7 - R6) / 16) cantidad palabras
@@ -260,7 +256,7 @@ searchword:
     beq addword
 
     @ 1. Comparar #caracteres
-    ldrb r8, [r6, #8]    @ Obtener cantidad caracteres de palabra en el diccionario
+    ldr r8, [r6, #4]    @ Obtener cantidad caracteres de palabra en el diccionario
     @sub r8, r8, #65536
 
     @ Cantidad de caracteres es la misma: comparar palabra
@@ -310,12 +306,13 @@ bucle_compareword:
 
 addfreq:
     @ Anade 1 a frecuencia
-    ldr r2, [r6, #10]   @ Obtener la frecuencia actual
+    ldr r2, [r6, #8]   @ Obtener la frecuencia actual
     add r2, r2, #1      @ Sumar 1
-    str r2, [r6, #10]   @ Escribirla de nuevo en la direccion
+    str r2, [r6, #8]   @ Escribirla de nuevo en la direccion
 
     ldr r3, =dictionary
     b freq_order
+    @bx lr
 
 freq_order:
     @ Reacomodar diccionario en orden de frecuencias con la palabra recien aumentada
@@ -330,8 +327,8 @@ freq_order:
 
     @ Comparar frecuencia con la palabra que este a la izquierda
     sub r6, r6, #16     @ Mover indice diccionario a la izquierda
-    ldrb r7, [r6, #10]   @ Obtener la frecuencia palabra izquierda
-    ldrb r2, [r6, #26]   @ Obtener la frecuencia palabra actual
+    ldr r7, [r6, #8]   @ Obtener la frecuencia palabra izquierda
+    ldr r2, [r6, #24]   @ Obtener la frecuencia palabra actual
 
     @ Si r7 < r2 se debe mover la palabra
     cmp r7, r2
@@ -354,21 +351,21 @@ freq_move:
 
     @ #Caracteres
     @ Obtener
-    ldrb r0, [r6, #8]
-    ldrb r2, [r6, #24]
+    ldrb r0, [r6, #4]
+    ldrb r2, [r6, #20]
 
     @ Intercambiar
-    strb r0, [r6, #24]
-    strb r2, [r6, #8]
+    strb r0, [r6, #20]
+    strb r2, [r6, #4]
 
     @ Frecuencias
     @ Obtener
-    ldr r0, [r6, #10]
-    ldr r2, [r6, #26]
+    ldr r0, [r6, #8]
+    ldr r2, [r6, #24]
 
     @ Intercambiar
-    str r0, [r6, #26]
-    str r2, [r6, #10]
+    str r0, [r6, #24]
+    str r2, [r6, #8]
 
     @ Continuar verificando frecuencias
     b freq_order
@@ -393,11 +390,11 @@ addword:
     str r8, [r10]
 
     @ Guardar cantidad caracteres de la palabra
-    str r4, [r10, #8]
+    str r4, [r10, #4]
 
     @ Cantidad apariciones = 1
     mov r8, #1
-    str r8, [r10, #10]
+    str r8, [r10, #8]
 
     @ Mover cursor de diccionario:
     add r10, r10, #16
@@ -438,8 +435,9 @@ pruebadiccionarios:
 
 pruebadiccionarios2:
     ldr r1, [r0]
-    ldrb r2, [r0, #8]
-    ldr r3, [r0, #10]
+    ldr r2, [r0, #4]
+    ldr r3, [r0, #8]
+    @sub r3, r3, #32
     add r0, r0, #16
 
     b pruebadiccionarios2
@@ -448,7 +446,6 @@ pruebadiccionarios2:
     
 
 end:
-
     @ Prueba de diccionarios
     @b pruebadiccionarios
 

@@ -22,7 +22,7 @@ text = text.lower()
 # Separar por espacio (tokenizar)
 words = text.split(" ")
 
-print(words)
+#print(words)
 
 # Escribir archivo de text_tokens
 i = 0
@@ -38,21 +38,24 @@ os.system('./words')
 
 # Obtener informacion del resultado del archivo arm
 content = ""
-with open("cache/result.txt", "r") as file:
+with open("cache/result.txt", "rb") as file:
     content = file.read()
+
+print(type(content))
 
 # Tokenizar datos y guardarlos
 wordsData = []
 freqData = []
-tokenContent = content.split('\n')
+tokenContent = content.split(b'\n')
 tokenContent.pop()  # Elimina basura
 
 print(tokenContent)
 
 for token in tokenContent:
-    data = token.split(' ')
-    wordsData.append(data[0])
-    freqData.append(ord(data[1]) - 32)
+    data = token.split(b' ')
+    print(data[0], data[1], sep=" ")
+    wordsData.append(data[0].decode('utf-8'))
+    freqData.append(int.from_bytes(data[1], byteorder='big'))
 
 
 # Graficar 
